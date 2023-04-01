@@ -1,25 +1,86 @@
-import type { Interceptors, TetOptions } from './types'
+import type {
+  Interceptors,
+  TetOptions,
+  TetRequestInit,
+  RejectedFn,
+  RequestHandler,
+  ResponseHandler
+} from './types'
 import Interceptor from './Interceptor'
+import { formatInput } from './helper'
 
 export default class Tet {
   private interceptors: Interceptors
   private options: TetOptions
 
-  constructor(options: TetOptions) {
-    this.interceptors = {
-      request: new Interceptor(),
-      response: new Interceptor()
-    }
+  constructor(options: TetOptions = { baseUrl: '', timeout: 1000 * 10 }) {
+    this.interceptors = { request: new Interceptor(), response: new Interceptor() }
     this.options = options
   }
 
-  request(input: string, init: RequestInit) {}
+  request(input: string, init: TetRequestInit) {
+    let newInit: RequestInit = { ...init }
+    let newInput: string = formatInput(input, {
+      baseUrl: this.options.baseUrl,
+      params: init.params
+    })
 
-  get(input: string, init: RequestInit) {}
+    const requestInterceptorChain: (RequestHandler | RejectedFn)[] = []
+    this.interceptors.request.forEach((interceptor) => {
+      if (interceptor === null) return
 
-  post(input: string, init: RequestInit) {}
+      if (interceptor.runWhen !== null && !interceptor.runWhen(newInit)) return
 
-  put(input: string, init: RequestInit) {}
+      requestInterceptorChain.push(interceptor.fulfilled, interceptor.rejected)
+    })
 
-  delete(input: string, init: RequestInit) {}
+    const responseInterceptorChain: (ResponseHandler | RejectedFn)[] = []
+    this.interceptors.response.forEach((interceptor) => {
+      if (interceptor === null) return
+
+      if (interceptor.runWhen !== null && !interceptor.runWhen(newInit)) return
+
+      responseInterceptorChain.push(interceptor.fulfilled, interceptor.rejected)
+    })
+
+    let index = 0
+    let length = requestInterceptorChain.length
+
+    while (index < length) {
+      const onFulfilled = requestInterceptorChain[index++] as RequestHandler
+      const onRejected = requestInterceptorChain[index++] as RejectedFn
+      try {
+        newInit = onFulfilled(newInit)
+      } catch (error) {
+        onRejected && onRejected(error)
+        break
+      }
+    }
+
+    let promise = fetch(newInput, newInit)
+
+    index = 0
+    length = responseInterceptorChain.length
+    while (index < length) {
+      promise = promise.then(responseInterceptorChain[index++], responseInterceptorChain[index++])
+    }
+
+    return promise
+  }
+
+  get(input: string, init: TetRequestInit) {
+    return this.request(input, { ...init, method: 'GET' })
+  }
+
+  post(input: string, init: TetRequestInit) {
+    return this.request(input, { ...init, method: 'POST' })
+  }
+
+  put(input: string, init: TetRequestInit) {
+    return this.request(input, { ...init, method: 'PUT' })
+  }
+
+  delete(input: string, init: TetRequestInit) {
+    return this.request(input, { ...init, method: 'DELETE' })
+  }
 }

@@ -1,23 +1,19 @@
-import type { InterceptorHandler } from './types'
-import { isFunction, isNumber } from '../is'
+import type { InterceptorHandlers, Handler, RejectedFn, RunWhen } from './types'
 
-export default class Interceptor<T extends Function> {
-  private handlers: InterceptorHandler<T>[]
+export default class Interceptor<T extends Handler> {
+  private handlers: (InterceptorHandlers<T> | null)[]
 
   constructor() {
     this.handlers = []
   }
 
-  use(callbackFn: T) {
-    return this.handlers.push(callbackFn) - 1
+  use(fulfilled: T, rejected: RejectedFn = null, runWhen: RunWhen = null) {
+    return this.handlers.push({ fulfilled, rejected, runWhen }) - 1
   }
 
-  eject(target: number | T) {
-    if (isNumber(target) && isFunction(this.handlers[target])) {
-      this.handlers[target] = null
-    } else {
-      const index = this.handlers.indexOf(target as T)
-      if (index !== -1) this.handlers[index] = null
+  eject(index: number) {
+    if (this.handlers[index] !== null) {
+      this.handlers[index] = null
     }
   }
 
@@ -25,7 +21,7 @@ export default class Interceptor<T extends Function> {
     if (this.handlers) this.handlers = []
   }
 
-  forEach(callbackFn: (value: T, index: number, array: (T | null)[]) => void) {
+  forEach(callbackFn: (value: InterceptorHandlers<T>, index: number, array: (T | null)[]) => void) {
     this.handlers.forEach((handler, index, array) => {
       if (handler === null) return
       callbackFn.call(null, handler, index, array)
