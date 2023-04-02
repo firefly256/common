@@ -1,6 +1,6 @@
 import type Interceptor from './Interceptor'
 // Interceptor
-export type RequestHandler = (init: RequestInit) => RequestInit
+export type RequestHandler = (init: RequestInitExtend) => RequestInitExtend
 
 export type ResponseHandler = (response: Response) => Response
 
@@ -25,13 +25,30 @@ export interface Interceptors {
 
 // Tet
 export interface TetOptions {
-  baseUrl?: string
+  baseURL?: string
+  timeout: number
+}
+export type TetParams = Record<string | number, string | number>
+
+export type TetData = Blob | BufferSource | FormData | Record<any, any>
+
+export type TransformRequestHandler = (
+  data: TetData,
+  headers: ResponseInit['headers']
+) => TetRequestInit
+
+export type TransformResponseHandler = (data: any) => any
+
+export interface RequestInitExtend extends RequestInit {
+  params?: TetParams
+  data?: TetData
+  method?: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH'
   timeout?: number
+  url: string
+  baseURL?: string
+  signal: AbortSignal
+  transformRequest?: TransformRequestHandler[]
+  transformResponse?: TransformResponseHandler[]
 }
 
-export type TetParams = Record<string | number, string | number>
-export interface TetRequestInit extends Omit<RequestInit, 'body' | 'signal'> {
-  params?: TetParams
-  data?: Blob | BufferSource | FormData | Record<any, any>
-  method?: 'GET' | 'POST' | 'DELETE' | 'PUT'
-}
+export type TetRequestInit = Omit<RequestInitExtend, 'body' | 'signal' | 'url' | 'baseURL'>

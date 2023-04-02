@@ -4,27 +4,36 @@ import type {
   TetRequestInit,
   RejectedFn,
   RequestHandler,
-  ResponseHandler
+  ResponseHandler,
+  RequestInitExtend
 } from './types'
 import Interceptor from './Interceptor'
-import { formatInput } from './helper'
+import { isURL } from '../regMap'
 
 export default class Tet {
   private interceptors: Interceptors
   private options: TetOptions
 
-  constructor(options: TetOptions = { baseUrl: '', timeout: 1000 * 10 }) {
+  constructor(options?: Partial<TetOptions>) {
     this.interceptors = { request: new Interceptor(), response: new Interceptor() }
-    this.options = options
+    this.options = {
+      baseURL: isURL(options?.baseURL!) ? options?.baseURL : undefined,
+      timeout: options?.timeout ?? 1000 * 10
+    }
   }
 
-  request(input: string, init: TetRequestInit) {
-    let newInit: RequestInit = { ...init }
-    let newInput: string = formatInput(input, {
-      baseUrl: this.options.baseUrl,
-      params: init.params
-    })
-
+  request<T = any>(input: string, init: TetRequestInit): T {
+    // AbortController
+    const controller = new AbortController()
+    // Generate new init
+    let newInit: RequestInitExtend = {
+      ...init,
+      signal: controller.signal,
+      url: input,
+      timeout: init.timeout ?? this.options.timeout,
+      baseURL: this.options.baseURL
+    }
+    // Generate request interceptor chain
     const requestInterceptorChain: (RequestHandler | RejectedFn)[] = []
     this.interceptors.request.forEach((interceptor) => {
       if (interceptor === null) return
@@ -33,7 +42,7 @@ export default class Tet {
 
       requestInterceptorChain.push(interceptor.fulfilled, interceptor.rejected)
     })
-
+    // Generate response interceptor chain
     const responseInterceptorChain: (ResponseHandler | RejectedFn)[] = []
     this.interceptors.response.forEach((interceptor) => {
       if (interceptor === null) return
@@ -42,10 +51,16 @@ export default class Tet {
 
       responseInterceptorChain.push(interceptor.fulfilled, interceptor.rejected)
     })
+    // Transform request
+    if (init.data && init.transformRequest) {
+      for (let callbackFn of init.transformRequest) {
+        init.data = callbackFn(init.data, init.headers)
+      }
+    }
 
     let index = 0
     let length = requestInterceptorChain.length
-
+    // Request interceptor
     while (index < length) {
       const onFulfilled = requestInterceptorChain[index++] as RequestHandler
       const onRejected = requestInterceptorChain[index++] as RejectedFn
@@ -56,31 +71,51 @@ export default class Tet {
         break
       }
     }
+    // Request timeout
+    if (newInit.timeout && newInit.timeout > 0) {
+      setTimeout(() => controller.abort(), newInit.timeout)
+    }
 
-    let promise = fetch(newInput, newInit)
+    let promise: any = fetch(newInit.url, newInit)
 
     index = 0
     length = responseInterceptorChain.length
+    // Response interceptor
     while (index < length) {
       promise = promise.then(responseInterceptorChain[index++], responseInterceptorChain[index++])
     }
 
+    // Transform response
+    promise = promise.then((response) => {
+      let $response = response
+      if (init.transformResponse) {
+        for (let callbackFn of init.transformResponse) {
+          $response = callbackFn($response)
+        }
+      }
+      return $response
+    })
+
+    Reflect.defineProperty(Reflect.getPrototypeOf(promise)!, 'cancel', {
+      value: () => controller.abort()
+    })
+
     return promise
   }
 
-  get(input: string, init: TetRequestInit) {
-    return this.request(input, { ...init, method: 'GET' })
+  get<T = any>(input: string, init: Omit<TetRequestInit, 'method'>) {
+    return this.request<T>(input, { ...init, method: 'GET' })
   }
 
-  post(input: string, init: TetRequestInit) {
-    return this.request(input, { ...init, method: 'POST' })
+  post<T = any>(input: string, init: Omit<TetRequestInit, 'method'>) {
+    return this.request<T>(input, { ...init, method: 'POST' })
   }
 
-  put(input: string, init: TetRequestInit) {
-    return this.request(input, { ...init, method: 'PUT' })
+  put<T = any>(input: string, init: Omit<TetRequestInit, 'method'>) {
+    return this.request<T>(input, { ...init, method: 'PUT' })
   }
 
-  delete(input: string, init: TetRequestInit) {
-    return this.request(input, { ...init, method: 'DELETE' })
+  delete<T = any>(input: string, init: Omit<TetRequestInit, 'method'>) {
+    return this.request<T>(input, { ...init, method: 'DELETE' })
   }
 }

@@ -1,10 +1,34 @@
-import type { TetRequestInit } from './types'
+import type { InterceptorHandlers, RequestHandler } from './types'
 import { isObject } from '../is'
+import { startWithHttp } from '../regMap'
+import qs from 'qs'
 
-const setTetBody = (init: TetRequestInit) => {
-  const newInit: RequestInit = init
+export const setBody: RequestHandler = (init) => {
+  if (init.data) {
+    init.body = isObject(init.data) ? JSON.stringify(init.data) : init.data
+  }
 
-  newInit.body = isObject(init.data) ? JSON.stringify(init.data) : init.data
+  if (!init.method || init.method === 'GET') {
+    delete init.body
+  }
 
-  return newInit
+  return init
 }
+
+export const perfectURL: RequestHandler = (init) => {
+  const { params, baseURL, url } = init
+  if (params) {
+    init.url = `${url}${url.includes('?') ? '&' : '?'}${qs.stringify(params)}`
+  }
+
+  if (!startWithHttp(url) && baseURL) {
+    init.url = baseURL + url
+  }
+
+  return init
+}
+
+export const requestInterceptors: InterceptorHandlers<RequestHandler>[] = [
+  { fulfilled: perfectURL, rejected: null, runWhen: null },
+  { fulfilled: setBody, rejected: null, runWhen: null }
+]
