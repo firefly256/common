@@ -52,3 +52,7 @@ export interface RequestInitExtend extends RequestInit {
 }
 
 export type TetRequestInit = Omit<RequestInitExtend, 'body' | 'signal' | 'url' | 'baseURL'>
+
+export interface Promisify<T = any> extends Promise<T> {
+  abort: Function
+}

@@ -8,7 +8,6 @@ import type {
   RequestInitExtend
 } from './types'
 import Interceptor from './Interceptor'
-import { isURL } from '../regMap'
 
 export default class Tet {
   private interceptors: Interceptors
@@ -17,12 +16,12 @@ export default class Tet {
   constructor(options?: Partial<TetOptions>) {
     this.interceptors = { request: new Interceptor(), response: new Interceptor() }
     this.options = {
-      baseURL: isURL(options?.baseURL!) ? options?.baseURL : undefined,
+      baseURL: options?.baseURL,
       timeout: options?.timeout ?? 1000 * 10
     }
   }
 
-  request<T = any>(input: string, init: TetRequestInit): T {
+  request<T = any>(input: string, init: TetRequestInit): Promise<T> {
     // AbortController
     const controller = new AbortController()
     // Generate new init
@@ -52,9 +51,9 @@ export default class Tet {
       responseInterceptorChain.push(interceptor.fulfilled, interceptor.rejected)
     })
     // Transform request
-    if (init.data && init.transformRequest) {
-      for (let callbackFn of init.transformRequest) {
-        init.data = callbackFn(init.data, init.headers)
+    if (newInit.data && newInit.transformRequest) {
+      for (let callbackFn of newInit.transformRequest) {
+        newInit.data = callbackFn(newInit.data, newInit.headers)
       }
     }
 
@@ -88,17 +87,18 @@ export default class Tet {
     // Transform response
     promise = promise.then((response) => {
       let $response = response
-      if (init.transformResponse) {
-        for (let callbackFn of init.transformResponse) {
+      if (newInit.transformResponse) {
+        for (let callbackFn of newInit.transformResponse) {
           $response = callbackFn($response)
         }
       }
       return $response
     })
 
-    Reflect.defineProperty(Reflect.getPrototypeOf(promise)!, 'cancel', {
-      value: () => controller.abort()
-    })
+    const prototype = Reflect.getPrototypeOf(promise)
+    if (prototype) {
+      Reflect.defineProperty(prototype, 'abort', { value: () => controller.abort() })
+    }
 
     return promise
   }
