@@ -8,6 +8,7 @@ import type {
   RequestInitExtend
 } from './types'
 import Interceptor from './Interceptor'
+import { requestInterceptors, responseInterceptors } from './interceptors'
 
 export default class Tet {
   private interceptors: Interceptors
@@ -19,6 +20,9 @@ export default class Tet {
       baseURL: options?.baseURL,
       timeout: options?.timeout ?? 1000 * 10
     }
+
+    requestInterceptors.forEach((each) => this.interceptors.request.use(each))
+    responseInterceptors.forEach((each) => this.interceptors.response.use(each))
   }
 
   request<T = any>(input: string, init: TetRequestInit): Promise<T> {
@@ -52,7 +56,7 @@ export default class Tet {
     })
     // Transform request
     if (newInit.data && newInit.transformRequest) {
-      for (let callbackFn of newInit.transformRequest) {
+      for (const callbackFn of newInit.transformRequest) {
         newInit.data = callbackFn(newInit.data, newInit.headers)
       }
     }
@@ -85,10 +89,10 @@ export default class Tet {
     }
 
     // Transform response
-    promise = promise.then((response) => {
+    promise = promise.then((response: any) => {
       let $response = response
       if (newInit.transformResponse) {
-        for (let callbackFn of newInit.transformResponse) {
+        for (const callbackFn of newInit.transformResponse) {
           $response = callbackFn($response)
         }
       }

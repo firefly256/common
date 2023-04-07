@@ -1,4 +1,4 @@
-import type { InterceptorHandlers, RequestHandler } from './types'
+import type { RequestHandler, ResponseHandler } from './types'
 import { isObject } from '../is'
 import { startWithHttp } from '../regMap'
 import qs from 'qs'
@@ -28,7 +28,12 @@ export const perfectURL: RequestHandler = (init) => {
   return init
 }
 
-export const requestInterceptors: InterceptorHandlers<RequestHandler>[] = [
-  { fulfilled: perfectURL, rejected: null, runWhen: null },
-  { fulfilled: setBody, rejected: null, runWhen: null }
-]
+export const parseData: ResponseHandler = (response) => {
+  console.log('response :>> ', response)
+  console.log('response :>> ', response.body?.getReader())
+  return response
+}
+
+export const requestInterceptors: RequestHandler[] = [perfectURL, setBody]
+
+export const responseInterceptors: ResponseHandler[] = [parseData]

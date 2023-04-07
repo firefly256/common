@@ -24,7 +24,7 @@ export default class Interceptor<T extends Handler> {
   forEach(callbackFn: (value: InterceptorHandlers<T>, index: number, array: (T | null)[]) => void) {
     this.handlers.forEach((handler, index, array) => {
       if (handler === null) return
-      callbackFn.call(null, handler, index, array)
+      callbackFn.call(null, handler, index, array as any)
     })
   }
 }
