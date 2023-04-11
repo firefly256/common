@@ -28,12 +28,6 @@ export const perfectURL: RequestHandler = (init) => {
   return init
 }
 
-export const parseData: ResponseHandler = (response) => {
-  console.log('response :>> ', response)
-  console.log('response :>> ', response.body?.getReader())
-  return response
-}
-
 export const requestInterceptors: RequestHandler[] = [perfectURL, setBody]
 
-export const responseInterceptors: ResponseHandler[] = [parseData]
+export const responseInterceptors: ResponseHandler[] = []

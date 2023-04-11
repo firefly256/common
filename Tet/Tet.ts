@@ -25,7 +25,7 @@ export default class Tet {
     responseInterceptors.forEach((each) => this.interceptors.response.use(each))
   }
 
-  request<T = any>(input: string, init: TetRequestInit): Promise<T> {
+  request(input: string, init: TetRequestInit = {}): Promise<Response> {
     // AbortController
     const controller = new AbortController()
     // Generate new init
@@ -107,19 +107,19 @@ export default class Tet {
     return promise
   }
 
-  get<T = any>(input: string, init: Omit<TetRequestInit, 'method'>) {
-    return this.request<T>(input, { ...init, method: 'GET' })
+  get(input: string, init: Omit<TetRequestInit, 'method'>) {
+    return this.request(input, { ...init, method: 'GET' })
   }
 
-  post<T = any>(input: string, init: Omit<TetRequestInit, 'method'>) {
-    return this.request<T>(input, { ...init, method: 'POST' })
+  post(input: string, init: Omit<TetRequestInit, 'method'>) {
+    return this.request(input, { ...init, method: 'POST' })
   }
 
-  put<T = any>(input: string, init: Omit<TetRequestInit, 'method'>) {
-    return this.request<T>(input, { ...init, method: 'PUT' })
+  put(input: string, init: Omit<TetRequestInit, 'method'>) {
+    return this.request(input, { ...init, method: 'PUT' })
   }
 
-  delete<T = any>(input: string, init: Omit<TetRequestInit, 'method'>) {
-    return this.request<T>(input, { ...init, method: 'DELETE' })
+  delete(input: string, init: Omit<TetRequestInit, 'method'>) {
+    return this.request(input, { ...init, method: 'DELETE' })
   }
 }
